@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Pedidos | UTEQ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; }
+        .header-custom { background: #1a2a3a; color: white; padding: 20px; border-radius: 0 0 24px 24px; }
+        .table thead th { font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; }
+        .badge-estado { font-size: 0.78rem; padding: 5px 12px; border-radius: 20px; }
+        .modal-section-header {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 8px 14px;
+            border-radius: 8px 8px 0 0;
+        }
+        .info-box {
+            border-radius: 0 0 10px 10px;
+            padding: 14px;
+            font-size: 0.875rem;
+        }
+        .info-badge {
+            background: white;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.82rem;
+        }
+        .form-select, .form-control {
+            border-radius: 8px;
+            border: 1.5px solid #dee2e6;
+            font-size: 0.9rem;
+        }
+        .form-select:focus, .form-control:focus {
+            border-color: #f1c40f;
+            box-shadow: 0 0 0 3px rgba(241, 196, 15, 0.2);
+        }
+        .btn-confirmar {
+            background: #f1c40f;
+            color: #1a2a3a;
+            font-weight: 700;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 28px;
+            transition: 0.2s;
+            cursor: pointer;
+        }
+        .btn-confirmar:hover { background: #d4ac0d; }
+        .slide-down { animation: slideDown 0.25s ease; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header-custom mb-4 shadow">
+    <div class="container d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-0 fw-bold">📦 Gestión de Pedidos</h1>
+            <p class="mb-0 text-warning small mt-1">Microservicios Orchestrator · UTEQ 2026</p>
+        </div>
+        <button class="btn btn-warning fw-bold px-4 shadow-sm rounded-pill"
+                data-bs-toggle="modal" data-bs-target="#modalPedido">
+            + Nuevo Pedido
+        </button>
+    </div>
+</div>
+
+<!-- TABLA -->
+<div class="container mb-5">
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body px-4 py-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0 fw-bold">📋 Historial de Transacciones</h5>
+                <span class="text-muted small" id="totalPedidos"></span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>ID Pedido</th>
+                        <th>ID Cliente</th>
+                        <th>Estado</th>
+                        <th>Total</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tablaPedidosBody">
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <div class="spinner-border spinner-border-sm me-2"></div> Cargando pedidos...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal fade" id="modalPedido" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
+            <div class="modal-header text-white border-0 px-4 py-3" style="background: #1a2a3a;">
+                <div>
+                    <h5 class="modal-title mb-0 fw-bold">✨ Registrar Nuevo Pedido</h5>
+                    <small class="text-warning opacity-75">Completa los datos del cliente y producto</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body p-4" style="background: #f8f9fb;">
+                <form id="formPedido">
+
+                    <!-- BLOQUE CLIENTE -->
+                    <div class="mb-4">
+                        <div class="modal-section-header text-white mb-0" style="background: #1a2a3a;">
+                            👤 Información del Cliente
+                        </div>
+                        <div class="info-box border border-top-0" style="border-color: #1a2a3a !important; background: #fff;">
+                            <label class="form-label small fw-semibold text-muted mb-1">Seleccionar Cliente</label>
+                            <select id="selectCliente" class="form-select mb-3" onchange="mostrarInfoCliente()" required>
+                                <option value="">-- Elige un cliente --</option>
+                            </select>
+
+                            <div id="infoCliente" class="d-none slide-down rounded-3 p-3" style="background: #eef2ff; border-left: 4px solid #1a2a3a;">
+                                <p class="fw-semibold text-dark mb-2 small">Datos del cliente seleccionado:</p>
+                                <div class="row g-2">
+                                    <div class="col-12 col-sm-4">
+                                        <div class="info-badge d-flex flex-column shadow-sm">
+                                            <span class="text-muted" style="font-size:0.72rem;">🪪 Cédula</span>
+                                            <strong id="clienteCedula" class="text-dark">—</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <div class="info-badge d-flex flex-column shadow-sm">
+                                            <span class="text-muted" style="font-size:0.72rem;">📞 Teléfono</span>
+                                            <strong id="clienteTelefono" class="text-dark">—</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <div class="info-badge d-flex flex-column shadow-sm">
+                                            <span class="text-muted" style="font-size:0.72rem;">📍 Dirección</span>
+                                            <strong id="clienteDireccion" class="text-dark">—</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE PRODUCTO -->
+                    <div class="mb-2">
+                        <div class="modal-section-header mb-0" style="background: #f1c40f; color: #1a2a3a;">
+                            🛒 Detalle del Producto
+                        </div>
+                        <div class="info-box border border-top-0" style="border-color: #f1c40f !important; background: #fff;">
+                            <label class="form-label small fw-semibold text-muted mb-1">Producto / Hardware</label>
+                            <select id="selectProducto" class="form-select mb-3" onchange="actualizarPrecioAutomatico()" required>
+                                <option value="">-- Selecciona un procesador / hardware --</option>
+                            </select>
+
+                            <div id="infoProducto" class="d-none slide-down rounded-3 p-3 mb-3" style="background: #fffbea; border-left: 4px solid #f1c40f;">
+                                <p class="fw-semibold text-dark mb-2 small">Información del producto:</p>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="info-badge d-flex flex-column shadow-sm">
+                                            <span class="text-muted" style="font-size:0.72rem;">💰 Precio Unitario</span>
+                                            <strong id="productoPrecioInfo" class="text-success">—</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="info-badge d-flex flex-column shadow-sm">
+                                            <span class="text-muted" style="font-size:0.72rem;">📦 Stock Disponible</span>
+                                            <strong id="productoStock" class="text-dark">—</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold text-muted mb-1">Cantidad</label>
+                                    <input type="number" id="prodCant" class="form-control" value="1" min="1" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-semibold text-muted mb-1">Precio Unitario ($)</label>
+                                    <input type="number" id="prodPrecio" class="form-control bg-light fw-bold text-success" readonly placeholder="0.00">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer border-0 px-4 py-3" style="background: #f8f9fb;">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" class="btn-confirmar" onclick="crearPedido()">
+                    🚀 Confirmar Pedido
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    let productosCache = [];
+    let clientesCache  = [];
+
+    async function cargarCatalogos() {
+        try {
+            const resClie = await fetch('/test/clientes');
+            clientesCache = await resClie.json();
+            const comboClie = document.getElementById('selectCliente');
+            comboClie.innerHTML = '<option value="">-- Elige un cliente --</option>';
+            clientesCache.forEach(c => {
+                comboClie.innerHTML += `<option value="${c.id}">${c.nombre} · ${c.cedula}</option>`;
+            });
+
+            const resProd = await fetch('/test/productos');
+            productosCache = await resProd.json();
+            const comboProd = document.getElementById('selectProducto');
+            comboProd.innerHTML = '<option value="">-- Selecciona un procesador / hardware --</option>';
+            productosCache.forEach(p => {
+                comboProd.innerHTML += `<option value="${p.id_producto}">${p.nombre} — $${p.precio.toFixed(2)}</option>`;
+            });
+
+        } catch (error) {
+            console.error("Error al conectar con microservicios:", error);
+        }
+    }
+
+    function mostrarInfoCliente() {
+        const idSeleccionado = document.getElementById('selectCliente').value;
+        const cliente = clientesCache.find(c => c.id == idSeleccionado);
+        const box = document.getElementById('infoCliente');
+        if (cliente) {
+            document.getElementById('clienteCedula').textContent    = cliente.cedula    || 'N/A';
+            document.getElementById('clienteTelefono').textContent  = cliente.telefono  || 'N/A';
+            document.getElementById('clienteDireccion').textContent = cliente.direccion || 'N/A';
+            box.classList.remove('d-none');
+        } else {
+            box.classList.add('d-none');
+        }
+    }
+
+    function actualizarPrecioAutomatico() {
+        const idSeleccionado = document.getElementById('selectProducto').value;
+        const producto = productosCache.find(p => p.id_producto == idSeleccionado);
+        const box = document.getElementById('infoProducto');
+        if (producto) {
+            document.getElementById('prodPrecio').value               = producto.precio;
+            document.getElementById('productoPrecioInfo').textContent  = `$${producto.precio.toFixed(2)}`;
+            document.getElementById('productoStock').textContent       = producto.stock ?? '0';
+            box.classList.remove('d-none');
+        } else {
+            box.classList.add('d-none');
+        }
+    }
+
+    async function listarPedidos() {
+        try {
+            const response = await fetch('/pedidos/api');
+            const pedidos  = await response.json();
+            const body     = document.getElementById('tablaPedidosBody');
+            document.getElementById('totalPedidos').textContent = `${pedidos.length} registro(s)`;
+            body.innerHTML = '';
+
+            if (pedidos.length === 0) {
+                body.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No hay pedidos registrados aún.</td></tr>`;
+                return;
+            }
+
+            pedidos.forEach(p => {
+                body.innerHTML += `
+                    <tr>
+                        <td><strong class="text-primary">#${p.pedidoId}</strong></td>
+                        <td><span class="text-muted">ID:</span> ${p.clienteId}</td>
+                        <td><span class="badge bg-success badge-estado">${p.estado}</span></td>
+                        <td class="fw-bold text-dark">$${p.total.toFixed(2)}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                    onclick="eliminarPedido(${p.pedidoId})">
+                                🗑 Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            console.error("Error cargando pedidos:", error);
+            document.getElementById('tablaPedidosBody').innerHTML =
+                `<tr><td colspan="5" class="text-center text-danger py-3">Error al cargar los pedidos.</td></tr>`;
+        }
+    }
+
+    async function crearPedido() {
+        const clienteId  = parseInt(document.getElementById('selectCliente').value);
+        const productoId = parseInt(document.getElementById('selectProducto').value);
+        const cantidad   = parseInt(document.getElementById('prodCant').value);
+        const precio     = parseFloat(document.getElementById('prodPrecio').value);
+
+        if (!clienteId || !productoId) {
+            alert("Por favor, selecciona un cliente y un producto.");
+            return;
+        }
+
+        const payload = {
+            clienteId: clienteId,
+            detalles: [{
+                productoId:     productoId,
+                cantidad:       cantidad,
+                precioUnitario: precio
+            }]
+        };
+
+        try {
+            const res = await fetch('/pedidos/api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                alert("🚀 Pedido registrado exitosamente");
+                location.reload();
+            } else {
+                alert("❌ Error al registrar el pedido.");
+            }
+        } catch (error) {
+            console.error("Error al crear pedido:", error);
+        }
+    }
+
+    async function eliminarPedido(id) {
+        if (confirm('¿Estás seguro de eliminar este registro?')) {
+            await fetch('/pedidos/api/' + id, { method: 'DELETE' });
+            listarPedidos();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        listarPedidos();
+        cargarCatalogos();
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

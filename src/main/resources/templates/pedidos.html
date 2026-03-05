@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Pedidos | UTEQ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .header-custom { background: #1a2a3a; color: white; padding: 20px; border-radius: 0 0 20px 20px; }
+        .card-stats { border: none; border-left: 5px solid #0d6efd; transition: 0.3s; }
+        .card-stats:hover { transform: translateY(-5px); }
+        .form-select:focus, .form-control:focus { border-color: #f1c40f; box-shadow: 0 0 0 0.25 cold rgba(241, 196, 15, 0.25); }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="header-custom mb-4 shadow">
+    <div class="container d-flex justify-content-between align-items-center">
+        <div>
+            <h1>📦 Gestión de Pedidos</h1>
+            <p class="mb-0 text-warning">Microservicios Orchestrator - UTEQ 2026</p>
+        </div>
+        <button class="btn btn-warning fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalPedido">
+            + CREAR NUEVO PEDIDO
+        </button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Historial de Transacciones</h5>
+            <table class="table table-striped align-middle">
+                <thead class="table-dark">
+                <tr>
+                    <th>ID Pedido</th>
+                    <th>ID Cliente</th>
+                    <th>Estado</th>
+                    <th>Total</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+                </thead>
+                <tbody id="tablaPedidosBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPedido" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">✨ Registrar Nuevo Pedido</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formPedido">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">👤 Seleccionar Cliente</label>
+                        <select id="selectCliente" class="form-select border-2" required>
+                            <option value="">Cargando clientes...</option>
+                        </select>
+                    </div>
+
+                    <div class="p-3 bg-light rounded border">
+                        <h6 class="text-primary fw-bold mb-3">🛒 Detalle de Compra</h6>
+
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted">Producto</label>
+                            <select id="selectProducto" class="form-select mb-2" onchange="actualizarPrecioAutomatico()" required>
+                                <option value="">Cargando catálogo...</option>
+                            </select>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Cantidad</label>
+                                <input type="number" id="prodCant" class="form-control" value="1" min="1" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Precio Unitario ($)</label>
+                                <input type="number" id="prodPrecio" class="form-control bg-white" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary px-4" onclick="crearPedido()">Confirmar y Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    let productosCache = []; // Para guardar precios y no pedirlos otra vez
+
+    // 1. CARGAR INFORMACIÓN DE CLIENTES Y PRODUCTOS PARA EL FORMULARIO
+    async function cargarCatalogos() {
+        try {
+            // Cargar Clientes desde tu endpoint /test/clientes
+            const resClie = await fetch('/test/clientes');
+            const clientes = await resClie.json();
+            const comboClie = document.getElementById('selectCliente');
+            comboClie.innerHTML = '<option value="">-- Elige un cliente --</option>';
+            clientes.forEach(c => {
+                comboClie.innerHTML += `<option value="${c.id}">${c.nombre} (ID: ${c.id})</option>`;
+            });
+
+            // Cargar Productos desde tu endpoint /test/productos
+            const resProd = await fetch('/test/productos');
+            productosCache = await resProd.json();
+            const comboProd = document.getElementById('selectProducto');
+            comboProd.innerHTML = '<option value="">-- Selecciona un procesador/hardware --</option>';
+            productosCache.forEach(p => {
+                comboProd.innerHTML += `<option value="${p.id_producto}">${p.nombre}</option>`;
+            });
+
+        } catch (error) {
+            console.error("Fallo al conectar con microservicios externos:", error);
+        }
+    }
+
+    // 2. ACTUALIZAR PRECIO AUTOMÁTICAMENTE SEGÚN EL PRODUCTO ELEGIDO
+    function actualizarPrecioAutomatico() {
+        const idSeleccionado = document.getElementById('selectProducto').value;
+        const producto = productosCache.find(p => p.id_producto == idSeleccionado);
+        if (producto) {
+            document.getElementById('prodPrecio').value = producto.precio;
+        }
+    }
+
+    // 3. LISTAR PEDIDOS EXISTENTES
+    async function listarPedidos() {
+        try {
+            const response = await fetch('/pedidos/api');
+            const pedidos = await response.json();
+            const body = document.getElementById('tablaPedidosBody');
+            body.innerHTML = '';
+
+            pedidos.forEach(p => {
+                body.innerHTML += `
+                    <tr>
+                        <td><strong>#${p.pedidoId}</strong></td>
+                        <td><span class="text-muted">ID:</span> ${p.clienteId}</td>
+                        <td><span class="badge rounded-pill bg-success px-3">${p.estado}</span></td>
+                        <td class="fw-bold text-dark">$${p.total.toFixed(2)}</td>
+                        <td class="text-center">
+                            <button class="btn btn-link text-danger p-0" onclick="eliminarPedido(${p.pedidoId})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            console.error("Error cargando pedidos:", error);
+        }
+    }
+
+    // 4. GUARDAR PEDIDO
+    async function crearPedido() {
+        const payload = {
+            clienteId: parseInt(document.getElementById('selectCliente').value),
+            detalles: [{
+                productoId: parseInt(document.getElementById('selectProducto').value),
+                cantidad: parseInt(document.getElementById('prodCant').value),
+                precioUnitario: parseFloat(document.getElementById('prodPrecio').value)
+            }]
+        };
+
+        if(!payload.clienteId || !payload.detalles[0].productoId) {
+            alert("Por favor, selecciona un cliente y un producto.");
+            return;
+        }
+
+        const res = await fetch('/pedidos/api', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if(res.ok) {
+            alert("🚀 Pedido registrado exitosamente");
+            location.reload();
+        }
+    }
+
+    // 5. ELIMINAR PEDIDO
+    async function eliminarPedido(id) {
+        if(confirm('¿Estás seguro de eliminar este registro?')) {
+            await fetch('/pedidos/api/' + id, { method: 'DELETE' });
+            listarPedidos();
+        }
+    }
+
+    // INICIALIZACIÓN
+    document.addEventListener('DOMContentLoaded', () => {
+        listarPedidos();
+        cargarCatalogos();
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

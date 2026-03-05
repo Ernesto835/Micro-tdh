@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microservicio-demo
+  namespace: pedidos
+spec:
+  replicas: 2  # Alta disponibilidad
+  selector:
+    matchLabels:
+      app: microservicio-demo
+  template:
+    metadata:
+      labels:
+        app: microservicio-demo
+    spec:
+      containers:
+        - name: microservicio-demo
+          image: deyner1/microservicio-pedidos:1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081  # Debe coincidir con el puerto en tu Dockerfile
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/mydb?useSSL=false"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "123456"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: microservicio-demo-service
+  namespace: pedidos
+spec:
+  type: LoadBalancer  # Para obtener IP pública en Azure
+  selector:
+    app: microservicio-demo
+  ports:
+    - port: 80          # Puerto externo para acceder al servicio
+      targetPort: 8081  # Puerto que tu contenedor expone
